@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
 
 export const ThemeContext = createContext();
+export const ApiKeyContext = createContext();
 
 function App() {
   const [user, setUser] = useState(null);
@@ -13,6 +14,22 @@ function App() {
   const [currentMessages, setCurrentMessages] = useState([]);
   const [theme, setTheme] = useState('light');
   const [refreshSidebar, setRefreshSidebar] = useState(0);
+  const [apiKeys, setApiKeys] = useState({});
+
+  // Load API keys from localStorage
+  useEffect(() => {
+    const savedApiKeys = localStorage.getItem('apiKeys');
+    if (savedApiKeys) {
+      setApiKeys(JSON.parse(savedApiKeys));
+    }
+  }, []);
+
+  // Save API keys to localStorage whenever they change
+  const updateApiKey = (provider, key) => {
+    const newApiKeys = { ...apiKeys, [provider]: key };
+    setApiKeys(newApiKeys);
+    localStorage.setItem('apiKeys', JSON.stringify(newApiKeys));
+  };
 
   // Check authentication state
   useEffect(() => {
@@ -63,8 +80,7 @@ function App() {
         .from('chats')
         .update({
           messages: currentMessages,
-          title: currentMessages[0]?.content?.substring(0, 50) || 'Untitled Chat',
-          updated_at: new Date().toISOString()
+          title: currentMessages[0]?.content?.substring(0, 50) || 'Untitled Chat'
         })
         .eq('id', currentChatId)
         .eq('user_id', user.id);
@@ -83,7 +99,6 @@ function App() {
   };
 
   const handleSelectChat = async (chat) => {
-    // Save current chat before switching
     await saveCurrentChat();
     
     console.log('Selecting chat:', chat.id);
@@ -95,32 +110,25 @@ function App() {
     if (!user) return;
 
     try {
-      // First, save the current chat if it exists and has messages
       const saveSuccess = await saveCurrentChat();
       
       if (saveSuccess && currentChatId && currentMessages.length > 0) {
-        // Trigger sidebar refresh after save
         setRefreshSidebar(prev => prev + 1);
-        // Small delay to ensure the save is processed
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      // Create a new chat in Supabase
       const { data, error } = await supabase
         .from('chats')
-        .insert([{
+        .insert({
           user_id: user.id,
           messages: [], 
-          title: 'New Chat',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
+          title: 'New Chat'
+        })
         .select()
         .single();
         
       if (error) {
         console.error('Error creating new chat:', error);
-        // Create a temporary local chat as fallback
         const tempChatId = `temp-${Date.now()}`;
         setCurrentChatId(tempChatId);
         setCurrentMessages([]);
@@ -128,10 +136,7 @@ function App() {
         console.log('New chat created:', data);
         setCurrentChatId(data.id);
         setCurrentMessages([]);
-        // Trigger sidebar refresh after new chat creation
-        setTimeout(() => {
-          setRefreshSidebar(prev => prev + 1);
-        }, 100);
+        setRefreshSidebar(prev => prev + 1);
       }
     } catch (err) {
       console.error('Network error creating new chat:', err);
@@ -147,17 +152,14 @@ function App() {
     if (!user || !chatId || messages.length === 0) return;
 
     try {
-      // For temporary chats, create a new chat in the database
       if (chatId.startsWith('temp-')) {
         const { data, error } = await supabase
           .from('chats')
-          .insert([{
+          .insert({
             user_id: user.id,
             messages,
-            title: messages[0]?.content?.substring(0, 50) || 'Untitled Chat',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }])
+            title: messages[0]?.content?.substring(0, 50) || 'Untitled Chat'
+          })
           .select()
           .single();
 
@@ -168,13 +170,11 @@ function App() {
         }
       }
 
-      // Update existing chat
       const { error } = await supabase
         .from('chats')
         .update({ 
           messages, 
-          title: messages[0]?.content?.substring(0, 50) || 'Untitled Chat',
-          updated_at: new Date().toISOString()
+          title: messages[0]?.content?.substring(0, 50) || 'Untitled Chat'
         })
         .eq('id', chatId)
         .eq('user_id', user.id);
@@ -182,7 +182,10 @@ function App() {
       if (error) {
         console.error('Error updating messages:', error);
       } else {
-        setRefreshSidebar(prev => prev + 1);
+        // Only refresh occasionally to reduce animation
+        if (Math.random() < 0.3) {
+          setRefreshSidebar(prev => prev + 1);
+        }
       }
     } catch (err) {
       console.error('Network error updating messages:', err);
@@ -194,17 +197,15 @@ function App() {
     await supabase.auth.signOut();
   };
 
-  // Auto-save functionality
+  // Reduced auto-save frequency to minimize refreshes
   useEffect(() => {
     if (!user) return;
 
     const autoSaveInterval = setInterval(() => {
       if (currentChatId && currentMessages.length > 0) {
-        saveCurrentChat().then(() => {
-          setRefreshSidebar(prev => prev + 1);
-        });
+        saveCurrentChat();
       }
-    }, 30000); // Auto-save every 30 seconds
+    }, 60000); // Changed to 60 seconds
 
     const handleBeforeUnload = () => {
       if (currentChatId && currentMessages.length > 0) {
@@ -237,21 +238,23 @@ function App() {
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      <div className="flex h-screen">
-        <Sidebar 
-          onSelectChat={handleSelectChat} 
-          onNewChat={handleNewChat}
-          currentChatId={currentChatId}
-          refreshTrigger={refreshSidebar}
-          user={user}
-          onSignOut={handleSignOut}
-        />
-        <ChatInterface
-          chatId={currentChatId}
-          messages={currentMessages}
-          onUpdateMessages={handleUpdateMessages}
-        />
-      </div>
+      <ApiKeyContext.Provider value={{ apiKeys, updateApiKey }}>
+        <div className="flex h-screen">
+          <Sidebar 
+            onSelectChat={handleSelectChat} 
+            onNewChat={handleNewChat}
+            currentChatId={currentChatId}
+            refreshTrigger={refreshSidebar}
+            user={user}
+            onSignOut={handleSignOut}
+          />
+          <ChatInterface
+            chatId={currentChatId}
+            messages={currentMessages}
+            onUpdateMessages={handleUpdateMessages}
+          />
+        </div>
+      </ApiKeyContext.Provider>
     </ThemeContext.Provider>
   );
 }

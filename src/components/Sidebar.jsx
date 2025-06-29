@@ -12,9 +12,7 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
   const fetchChats = async () => {
     if (!user) return;
     
-    setLoading(true)
     try {
-      console.log('Fetching chats for user:', user.id)
       const { data, error } = await supabase
         .from('chats')
         .select('*')
@@ -25,7 +23,6 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
         console.error('Error fetching chats:', error)
         setChats([])
       } else {
-        console.log('Loaded chats:', data?.length || 0)
         setChats(data || [])
       }
     } catch (err) {
@@ -40,7 +37,7 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
     if (user) {
       fetchChats()
 
-      // Set up real-time subscription
+      // Set up real-time subscription with reduced frequency
       const subscription = supabase
         .channel('user-chats')
         .on('postgres_changes', { 
@@ -49,10 +46,12 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
           table: 'chats',
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
-          console.log('Chat change detected:', payload)
-          setTimeout(() => {
-            fetchChats()
-          }, 200)
+          // Only refresh for insert/delete operations, not updates
+          if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            setTimeout(() => {
+              fetchChats()
+            }, 500)
+          }
         })
         .subscribe()
 
@@ -64,7 +63,6 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
 
   useEffect(() => {
     if (refreshTrigger > 0 && user) {
-      console.log('Manual refresh triggered')
       fetchChats()
     }
   }, [refreshTrigger, user])
@@ -83,9 +81,7 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
         console.error('Error deleting chat:', error)
       } else {
         console.log('Chat deleted successfully')
-        setTimeout(() => {
-          fetchChats()
-        }, 100)
+        fetchChats()
       }
     } catch (err) {
       console.error('Network error deleting chat:', err)
@@ -159,9 +155,10 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
             <p className="text-sm">Start a new conversation!</p>
           </div>
         ) : (
-          <AnimatePresence>
+          // Removed AnimatePresence to reduce animations
+          <div className="space-y-2">
             {chats.map(chat => (
-              <motion.div
+              <div
                 key={chat.id}
                 className={`group p-3 rounded cursor-pointer transition-all relative ${
                   currentChatId === chat.id
@@ -173,10 +170,6 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
                     : 'hover:bg-gray-700'
                 }`}
                 onClick={() => onSelectChat(chat)}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start flex-1 min-w-0">
@@ -223,9 +216,9 @@ const Sidebar = ({ onSelectChat, onNewChat, currentChatId, refreshTrigger, user,
                     <FiTrash2 className="w-4 h-4" />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </AnimatePresence>
+          </div>
         )}
       </div>
     </motion.div>

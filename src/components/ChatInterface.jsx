@@ -6,7 +6,7 @@ import { callOllama } from '../lib/ollama';
 import { callProvider } from '../lib/apiProviders';
 import { supabase } from '../lib/supabase';
 import ModelSelector from './ModelSelector';
-import { ThemeContext } from '../App';
+import { ThemeContext, ApiKeyContext } from '../App';
 
 // Error Boundary Class Component
 class ErrorBoundary extends Component {
@@ -53,6 +53,7 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
   const [expandedReasoning, setExpandedReasoning] = useState(null);
   const messagesEndRef = useRef(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const { apiKeys } = useContext(ApiKeyContext);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,7 +90,11 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
       if (model.provider === 'ollama') {
         response = await callOllama(context, model.name);
       } else {
-        response = await callProvider(model.provider, context, model.name);
+        const apiKey = apiKeys[model.provider];
+        if (!apiKey) {
+          throw new Error(`API key required for ${model.provider}. Please configure it in the model selector.`);
+        }
+        response = await callProvider(model.provider, context, model.name, apiKey);
       }
 
       // Extract reasoning from <think> tags
