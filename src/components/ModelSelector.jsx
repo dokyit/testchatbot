@@ -20,12 +20,13 @@ const ModelSelector = ({ onSelectModel }) => {
       ]
       setModels(allModels)
       if (ollamaModels.length > 0) {
-        setSelectedModel({ provider: 'ollama', name: ollamaModels[0] })
-        onSelectModel({ provider: 'ollama', name: ollamaModels[0] })
+        const defaultModel = { provider: 'ollama', name: ollamaModels[0] }
+        setSelectedModel(defaultModel)
+        onSelectModel(defaultModel)
       }
     }
     fetchModels()
-  }, [])
+  }, [onSelectModel])
 
   const handleSelect = (e) => {
     const [provider, name] = e.target.value.split(':')
@@ -36,8 +37,11 @@ const ModelSelector = ({ onSelectModel }) => {
 
   return (
     <motion.select
-      className="w-full p-2 rounded bg-gray-100 text-gray-800"
+      className={`w-full p-2 rounded ${
+        document.documentElement.classList.contains('dark') ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-800'
+      }`}
       onChange={handleSelect}
+      value={selectedModel ? `${selectedModel.provider}:${selectedModel.name}` : ''}
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}

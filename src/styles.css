@@ -2,9 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Light Mode (Serene & Gentle) */
+  --background: #F9F9F9; /* Soft Off-White */
+  --bot-message-bg: #ECEFF1; /* Light Gray */
+  --user-message-bg: #E57399; /* Lotus Pink */
+  --accent: #FDD835; /* Golden Yellow */
+  --primary-text: #37474F; /* Charcoal Gray */
+  --secondary-text: #8D93A1; /* Muted Gray */
+}
+
+.dark {
+  /* Dark Mode (Deep & Focused) */
+  --background: #2C2F3E; /* Deep Indigo */
+  --bot-message-bg: #4E4E6A; /* Muted Purple */
+  --user-message-bg: #F06292; /* Vibrant Pink */
+  --accent: #FFD600; /* Bright Gold */
+  --primary-text: #EAEAEA; /* Soft White */
+  --secondary-text: #9FA8DA; /* Cool Gray */
+}
+
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #f5f5f5;
+  background-color: var(--background);
+  color: var(--primary-text);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .chat-bubble {
@@ -12,9 +34,21 @@ body {
 }
 
 .user-bubble {
-  @apply bg-blue-500 text-white ml-auto;
+  @apply ml-auto;
+  background-color: var(--user-message-bg);
+  color: var(--primary-text);
 }
 
 .ai-bubble {
-  @apply bg-gray-200 text-gray-800;
+  background-color: var(--bot-message-bg);
+  color: var(--primary-text);
+}
+
+.accent-button {
+  background-color: var(--accent);
+  color: var(--primary-text);
+}
+
+.secondary-text {
+  color: var(--secondary-text);
 }
