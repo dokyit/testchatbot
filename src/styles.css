@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f5f5f5;
+}
+
+.chat-bubble {
+  @apply p-4 rounded-lg max-w-2xl;
+}
+
+.user-bubble {
+  @apply bg-blue-500 text-white ml-auto;
+}
+
+.ai-bubble {
+  @apply bg-gray-200 text-gray-800;
+}
