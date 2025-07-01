@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useContext, Component, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSend, FiSun, FiMoon, FiChevronDown, FiPaperclip, FiMic, FiMicOff, FiSquare, FiCopy, FiCheck, FiEye } from 'react-icons/fi';
+import { FiSend, FiSun, FiMoon, FiChevronDown, FiPaperclip, FiCopy, FiCheck, FiEye } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import ModelSelector from './ModelSelector';
 import AttachmentPreview from './AttachmentPreview';
+import VoiceInput from './VoiceInput'; // Make sure this is imported
+import FileUpload from './FileUpload'; // Make sure this is imported
 import { ThemeContext, ApiKeyContext } from '../App';
 
 // Import Prism.js and languages in correct dependency order
@@ -51,11 +53,10 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
     });
   };
 
-  // For inline code, return simple styled span
   if (inline) {
     return (
-      <code 
-        className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-red-600 dark:text-red-400 font-mono text-sm" 
+      <code
+        className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded text-red-600 dark:text-red-400 font-mono text-sm"
         {...props}
       >
         {children}
@@ -63,7 +64,6 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
     );
   }
 
-  // Only render as code block if there's actually a language specified
   if (!language) {
     return (
       <pre className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg overflow-x-auto my-4">
@@ -78,8 +78,8 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
     <div className="my-4 bg-gray-900 rounded-lg overflow-hidden shadow-lg">
       <div className="flex justify-between items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
         <span className="text-gray-300 font-medium text-sm capitalize">{language}</span>
-        <button 
-          onClick={handleCopy} 
+        <button
+          onClick={handleCopy}
           className="flex items-center text-xs text-gray-400 hover:text-white transition-colors duration-200 px-2 py-1 rounded hover:bg-gray-700"
         >
           {isCopied ? (
@@ -96,9 +96,9 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
         </button>
       </div>
       <pre className="p-4 overflow-x-auto bg-gray-900">
-        <code 
+        <code
           ref={codeRef}
-          className={`language-${language} font-mono text-sm`} 
+          className={`language-${language} font-mono text-sm`}
           {...props}
         >
           {children}
@@ -108,171 +108,57 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
   );
 };
 
-// Custom Pre Component to handle wrapping
 const PreComponent = ({ children, ...props }) => {
-  // Don't render anything - let the code component handle everything
   return <>{children}</>;
 };
 
-// Custom Paragraph Component
 const ParagraphComponent = ({ children, ...props }) => {
-  // Check if this paragraph only contains a code block
-  const hasCodeBlock = React.Children.toArray(children).some(child => 
+  const hasCodeBlock = React.Children.toArray(children).some(child =>
     React.isValidElement(child) && child.type === CodeBlock
   );
-  
-  // If it contains a code block, don't wrap in <p>
+
   if (hasCodeBlock) {
     return <>{children}</>;
   }
-  
-  // Otherwise, render as normal paragraph
+
   return <p {...props}>{children}</p>;
 };
 
-// File Upload Component
-const FileUpload = ({ onFileSelect, disabled, theme }) => {
-  const fileInputRef = useRef(null);
-  
-  const handleFiles = (files) => {
-    if (!files.length) return;
-    onFileSelect(files[0]);
-  };
-  
-  return (
-    <div className="relative">
-      <motion.button 
-        onClick={() => fileInputRef.current?.click()} 
-        disabled={disabled} 
-        className={`p-2 rounded-lg transition-colors ${
-          disabled 
-            ? 'text-gray-400 cursor-not-allowed' 
-            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
-        }`} 
-        title="Attach an image"
-        whileHover={!disabled ? { scale: 1.05 } : {}}
-        whileTap={!disabled ? { scale: 0.95 } : {}}
-      >
-        <FiPaperclip className="w-5 h-5" />
-      </motion.button>
-      <input 
-        ref={fileInputRef} 
-        type="file" 
-        multiple={false} 
-        accept="image/*" 
-        onChange={(e) => handleFiles(e.target.files)} 
-        className="hidden" 
-      />
-    </div>
-  );
-};
-
-// Voice Input Component
-const VoiceInput = ({ onTranscript, disabled, theme }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
-  const recognitionRef = useRef(null);
-
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      setIsSupported(true);
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        onTranscript(transcript);
-        setIsRecording(false);
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsRecording(false);
-      };
-    }
-  }, [onTranscript]);
-
-  const toggleRecording = () => {
-    if (!recognitionRef.current) return;
-
-    if (isRecording) {
-      recognitionRef.current.stop();
-    } else {
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(() => {
-          recognitionRef.current.start();
-          setIsRecording(true);
-        })
-        .catch(console.error);
-    }
-  };
-
-  if (!isSupported) return null;
-
-  return (
-    <motion.button
-      onClick={toggleRecording}
-      disabled={disabled}
-      className={`p-2 rounded-lg transition-colors ${
-        disabled
-          ? 'text-gray-400 cursor-not-allowed'
-          : isRecording
-          ? 'bg-red-500 text-white animate-pulse'
-          : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
-      }`}
-      whileHover={!disabled ? { scale: 1.05 } : {}}
-      whileTap={!disabled ? { scale: 0.95 } : {}}
-    >
-      {isRecording ? <FiSquare className="w-5 h-5" /> : <FiMic className="w-5 h-5" />}
-    </motion.button>
-  );
-};
-
-// Error Boundary Component
 class ErrorBoundary extends Component {
-  constructor(props) { 
-    super(props); 
-    this.state = { hasError: false, error: null }; 
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
   }
-  
-  static getDerivedStateFromError(error) { 
-    return { hasError: true, error }; 
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
-  
+
   componentDidCatch(error, errorInfo) {
     console.error('Error caught by boundary:', error, errorInfo);
   }
-  
-  render() { 
-    if (this.state.hasError) { 
+
+  render() {
+    if (this.state.hasError) {
       return (
         <div className="p-4 text-center text-red-600 dark:text-red-400">
           <h2>Something went wrong.</h2>
           <p className="text-sm mt-2 text-gray-600 dark:text-gray-400">
             {this.state.error?.message || 'An unexpected error occurred'}
           </p>
-          <button 
+          <button
             onClick={() => this.setState({ hasError: false, error: null })}
             className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Try again
           </button>
         </div>
-      ); 
-    } 
-    return this.props.children; 
+      );
+    }
+    return this.props.children;
   }
 }
 
-// Main ChatInterface Component
 const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) => {
   const [messages, setMessages] = useState(initialMessages || []);
   const [input, setInput] = useState('');
@@ -280,21 +166,21 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
   const [isLoading, setIsLoading] = useState(false);
   const [expandedReasoning, setExpandedReasoning] = useState(null);
   const [attachment, setAttachment] = useState(null);
-  
+  const [error, setError] = useState(null);
+
   const messagesEndRef = useRef(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const { apiKeys } = useContext(ApiKeyContext);
 
-  useEffect(() => { 
-    setMessages(initialMessages || []); 
+  useEffect(() => {
+    setMessages(initialMessages || []);
   }, [initialMessages]);
 
-  useEffect(() => { 
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   useEffect(() => {
-    // Highlight code blocks when messages change
     const timer = setTimeout(() => {
       try {
         Prism.highlightAll();
@@ -302,26 +188,25 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
         console.warn('Prism highlighting failed:', error);
       }
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [messages]);
 
-  const handleModelSelect = useCallback((newModel) => { 
-    setModel(newModel); 
+  const handleModelSelect = useCallback((newModel) => {
+    setModel(newModel);
   }, []);
 
   const handleFileSelect = (file) => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
-      
+
       reader.onloadend = () => {
-        // Convert to data URL instead of blob URL to avoid security issues
-        setAttachment({ 
-          name: file.name, 
-          type: file.type, 
+        setAttachment({
+          name: file.name,
+          type: file.type,
           size: file.size,
-          previewUrl: reader.result, // Use data URL instead
-          url: reader.result, // Use data URL instead
+          previewUrl: reader.result,
+          url: reader.result,
           base64: reader.result.split(',')[1]
         });
       };
@@ -329,22 +214,27 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
     }
   };
 
-  const handleVoiceTranscript = (transcript) => { 
-    setInput(prev => prev + transcript); 
+  const handleVoiceTranscript = (transcript) => {
+    setInput(prev => prev + transcript);
   };
 
-  const removeAttachment = () => { 
-    setAttachment(null); 
+  const handleTranscriptionError = (errorMessage) => {
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000); // Clear error after 5 seconds
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
   };
 
   const handleSend = async () => {
     if ((!input.trim() && !attachment) || isLoading) return;
 
     setIsLoading(true);
-    const userMessage = { 
-      role: 'user', 
-      content: input, 
-      attachments: attachment ? [attachment] : [] 
+    const userMessage = {
+      role: 'user',
+      content: input,
+      attachments: attachment ? [attachment] : []
     };
     const currentMessagesWithUser = [...messages, userMessage];
     setMessages(currentMessagesWithUser);
@@ -360,15 +250,15 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
         message: userMessage.content,
         image_base64: userMessage.attachments?.[0]?.base64 || null,
         model: model.name,
-        conversation_history: messages.map(m => ({ 
-          human: m.role === 'user' ? m.content : '', 
-          assistant: m.role === 'assistant' ? m.content : '' 
+        conversation_history: messages.map(m => ({
+          human: m.role === 'user' ? m.content : '',
+          assistant: m.role === 'assistant' ? m.content : ''
         }))
       };
-      
+
       const response = await fetch('http://localhost:8001/chat', {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -396,22 +286,21 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
       aiReasoning = `**Error Details:** ${error.message}`;
     }
 
-    const aiMessage = { 
-      role: 'assistant', 
-      content: aiResponseContent, 
-      reasoning: aiReasoning 
+    const aiMessage = {
+      role: 'assistant',
+      content: aiResponseContent,
+      reasoning: aiReasoning
     };
     const finalMessages = [...currentMessagesWithUser, aiMessage];
-    
+
     onUpdateMessages(finalMessages, chatId);
     setIsLoading(false);
   };
 
-  const toggleReasoning = (index) => { 
-    setExpandedReasoning(expandedReasoning === index ? null : index); 
+  const toggleReasoning = (index) => {
+    setExpandedReasoning(expandedReasoning === index ? null : index);
   };
 
-  // Custom components for ReactMarkdown
   const markdownComponents = {
     code: CodeBlock,
     pre: PreComponent,
@@ -423,13 +312,13 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
       <div className="flex-1 flex flex-col h-screen">
         {/* Header */}
         <div className={`p-4 shadow-sm border-b ${
-          theme === 'light' 
-            ? 'bg-white border-gray-200' 
+          theme === 'light'
+            ? 'bg-white border-gray-200'
             : 'bg-gray-800 border-gray-700'
         }`}>
           <div className="flex justify-between items-center">
             <ModelSelector onSelectModel={handleModelSelect} currentModel={model} />
-            <motion.button 
+            <motion.button
               className={`p-2 rounded-lg transition-colors ${
                 theme === 'light'
                   ? 'text-gray-600 hover:bg-gray-100'
@@ -443,21 +332,21 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
             </motion.button>
           </div>
         </div>
-        
+
         {/* Messages Area */}
         <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${
           theme === 'light' ? 'bg-gray-50' : 'bg-gray-900'
         }`}>
           <AnimatePresence>
             {messages.map((message, index) => (
-              <motion.div 
-                key={index} 
+              <motion.div
+                key={index}
                 className={`max-w-4xl ${
-                  message.role === 'user' 
-                    ? 'ml-auto' 
+                  message.role === 'user'
+                    ? 'ml-auto'
                     : 'mr-auto'
                 }`}
-                initial={{ opacity: 0, y: 20 }} 
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
@@ -475,10 +364,10 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
                     <div key={i} className="mb-3">
                       {att.type && att.type.startsWith('image/') ? (
                         <div className="relative group">
-                          <img 
-                            src={att.previewUrl || att.url} 
-                            alt={att.name || 'Attached image'} 
-                            className="rounded-lg max-w-xs max-h-64 object-cover border shadow-sm cursor-pointer" 
+                          <img
+                            src={att.previewUrl || att.url}
+                            alt={att.name || 'Attached image'}
+                            className="rounded-lg max-w-xs max-h-64 object-cover border shadow-sm cursor-pointer"
                             onClick={() => window.open(att.previewUrl || att.url, '_blank')}
                           />
                           <button
@@ -496,7 +385,7 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
                       )}
                     </div>
                   ))}
-                  
+
                   {/* Message Content */}
                   <div className={`prose prose-sm max-w-none ${
                     theme === 'dark' ? 'prose-invert' : ''
@@ -505,16 +394,16 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
                       {message.content}
                     </ReactMarkdown>
                   </div>
-                  
+
                   {/* Reasoning Section */}
                   {message.role === 'assistant' && message.reasoning && (
                     <div className={`mt-4 pt-3 border-t ${
                       theme === 'light' ? 'border-gray-200' : 'border-gray-600'
                     }`}>
-                      <button 
+                      <button
                         className={`flex items-center text-sm transition-colors ${
-                          theme === 'light' 
-                            ? 'text-gray-600 hover:text-blue-600' 
+                          theme === 'light'
+                            ? 'text-gray-600 hover:text-blue-600'
                             : 'text-gray-400 hover:text-blue-400'
                         }`}
                         onClick={() => toggleReasoning(index)}
@@ -525,13 +414,13 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
                         }`} />
                       </button>
                       {expandedReasoning === index && (
-                        <motion.div 
+                        <motion.div
                           className={`mt-3 p-3 rounded-lg text-sm ${
-                            theme === 'light' 
-                              ? 'bg-gray-50 text-gray-700' 
+                            theme === 'light'
+                              ? 'bg-gray-50 text-gray-700'
                               : 'bg-gray-700 text-gray-300'
                           }`}
-                          initial={{ opacity: 0, height: 0 }} 
+                          initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           transition={{ duration: 0.3 }}
                         >
@@ -550,9 +439,9 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
 
             {/* Loading Indicator */}
             {isLoading && (
-              <motion.div 
+              <motion.div
                 className={`max-w-4xl mr-auto`}
-                initial={{ opacity: 0, y: 20 }} 
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
               >
                 <div className={`p-4 rounded-lg shadow-sm ${
@@ -563,20 +452,20 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
                   <div className="flex items-center space-x-2">
                     <span className="text-gray-500 dark:text-gray-400">AI is thinking</span>
                     <div className="flex space-x-1">
-                      <motion.span 
-                        className="w-2 h-2 bg-gray-400 rounded-full" 
-                        animate={{ y: [0, -6, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.8, delay: 0 }} 
+                      <motion.span
+                        className="w-2 h-2 bg-gray-400 rounded-full"
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0 }}
                       />
-                      <motion.span 
-                        className="w-2 h-2 bg-gray-400 rounded-full" 
-                        animate={{ y: [0, -6, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.2 }} 
+                      <motion.span
+                        className="w-2 h-2 bg-gray-400 rounded-full"
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.2 }}
                       />
-                      <motion.span 
-                        className="w-2 h-2 bg-gray-400 rounded-full" 
-                        animate={{ y: [0, -6, 0] }} 
-                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }} 
+                      <motion.span
+                        className="w-2 h-2 bg-gray-400 rounded-full"
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }}
                       />
                     </div>
                   </div>
@@ -586,57 +475,67 @@ const ChatInterface = ({ chatId, messages: initialMessages, onUpdateMessages }) 
           </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>
-        
+
         {/* Input Area */}
         <div className={`p-4 border-t ${
-          theme === 'light' 
-            ? 'bg-white border-gray-200' 
+          theme === 'light'
+            ? 'bg-white border-gray-200'
             : 'bg-gray-800 border-gray-700'
         }`}>
+          {error && (
+            <div className="text-center text-sm text-red-500 mb-2">
+              {error}
+            </div>
+          )}
           {attachment && (
-            <AttachmentPreview 
-              attachments={[attachment]} 
-              onRemove={removeAttachment} 
-              theme={theme} 
+            <AttachmentPreview
+              attachments={[attachment]}
+              onRemove={removeAttachment}
+              theme={theme}
             />
           )}
           <div className="flex items-end space-x-2">
             <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} theme={theme} />
-            <VoiceInput onTranscript={handleVoiceTranscript} disabled={isLoading} theme={theme} />
-            
+            <VoiceInput
+                onTranscript={handleVoiceTranscript}
+                onTranscriptionError={handleTranscriptionError}
+                disabled={isLoading}
+                theme={theme}
+            />
+
             <div className="flex-1">
               <textarea
-                value={input} 
+                value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => { 
-                  if (e.key === 'Enter' && !e.shiftKey) { 
-                    e.preventDefault(); 
-                    handleSend(); 
-                  } 
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
                 }}
                 className={`w-full p-3 rounded-lg border transition-colors resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  theme === 'light' 
-                    ? 'bg-gray-100 border-gray-200 text-gray-900 placeholder-gray-500 focus:bg-white focus:border-blue-500' 
+                  theme === 'light'
+                    ? 'bg-gray-100 border-gray-200 text-gray-900 placeholder-gray-500 focus:bg-white focus:border-blue-500'
                     : 'bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-400 focus:bg-gray-700 focus:border-blue-500'
                 }`}
-                placeholder="Type your message..." 
-                disabled={isLoading} 
+                placeholder="Type your message..."
+                disabled={isLoading}
                 rows={1}
                 style={{ minHeight: '48px', maxHeight: '150px' }}
-                onInput={(e) => { 
-                  e.target.style.height = 'auto'; 
-                  e.target.style.height = `${e.target.scrollHeight}px`; 
+                onInput={(e) => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight}px`;
                 }}
               />
             </div>
-            
+
             <motion.button
               className={`p-3 rounded-lg font-medium transition-colors self-stretch flex items-center justify-center min-w-[48px] ${
-                (isLoading || (!input.trim() && !attachment)) 
-                  ? 'bg-gray-400 cursor-not-allowed' 
+                (isLoading || (!input.trim() && !attachment))
+                  ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-500 hover:bg-blue-600 shadow-lg hover:shadow-xl'
               } text-white`}
-              onClick={handleSend} 
+              onClick={handleSend}
               disabled={isLoading || (!input.trim() && !attachment)}
               whileHover={!isLoading && (input.trim() || attachment) ? { scale: 1.05 } : {}}
               whileTap={!isLoading && (input.trim() || attachment) ? { scale: 0.95 } : {}}
